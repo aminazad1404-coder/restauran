@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>منوی رستوران — ویرایش دسته‌بندی تمیز</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Vazirmatn', sans-serif;
+      background: #fdfdfd;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    #restaurant-name {
+      font-size: 1.8rem;
+      color: #d35400;
+      cursor: pointer;
+    }
+    #search-box {
+      width: 100%;
+      padding: 12px;
+      margin: 15px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      text-align: right;
+    }
+    .category {
+      margin-bottom: 25px;
+    }
+    .category-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .category-title {
+      font-size: 1.3rem;
+      color: #e67e22;
+      padding-right: 8px;
+      border-right: 4px solid #e67e22;
+      flex: 1;
+    }
+    .cat-edit-delete {
+      display: none;
+    }
+    .admin-mode .cat-edit-delete {
+      display: flex;
+      gap: 8px;
+    }
+    .cat-edit-delete button {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .edit-btn { color: #3498db; }
+    .delete-cat-btn { color: #e74c3c; }
+
+    .item {
+      display: grid;
+      grid-template-columns: 60px 1fr 80px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px dashed #eee;
+    }
+    .item-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      justify-self: end;
+    }
+    .item-info {
+      text-align: right;
+    }
+    .item-name {
+      font-weight: 500;
+    }
+    .item-price {
+      font-weight: 700;
+      color: #27ae60;
+      text-align: left;
+      direction: ltr;
+    }
+    .edit-delete {
+      display: none;
+    }
+    .admin-mode .edit-delete {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .edit-delete button {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .admin-section {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: none;
+    }
+    .admin-section input, .admin-section button {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      font-size: 1rem;
+    }
+    .admin-section button {
+      background: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .admin-section button#toggle-admin {
+      background: #e74c3c;
+    }
+    .admin-section button#update-item {
+      background: #f39c12;
+    }
+    footer {
+      text-align: center;
+      margin-top: 25px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 id="restaurant-name">رستوران طعم خانه</h1>
+  </header>
+
+  <input type="text" id="search-box" placeholder="جستجوی غذا..." />
+
+  <div id="menu-container"></div>
+
+  <div id="admin-panel" class="admin-section">
+    <input type="text" id="category-input" placeholder="دسته‌بندی (مثال: دسرها)" />
+    <input type="text" id="item-name" placeholder="نام غذا" />
+    <input type="text" id="item-price" placeholder="قیمت (مثال: 150000)" />
+    <input type="text" id="item-image" placeholder="لینک تصویر (اختیاری)" />
+    <button id="add-update-btn">افزودن آیتم</button>
+    <button id="toggle-admin">خروج از حالت مدیریت</button>
+  </div>
+
+  <footer>
+    <p>برای ورود به حالت مدیریت، ۵ بار روی نام رستوران بزنید.</p>
+  </footer>
+
+  <script>
+    function toPersianDigits(str) {
+      const map = { '0':'۰', '1':'۱', '2':'۲', '3':'۳', '4':'۴', '5':'۵', '6':'۶', '7':'۷', '8':'۸', '9':'۹' };
+      return str.toString().replace(/[0-9]/g, x => map[x]);
+    }
+
+    function formatPrice(numStr) {
+      const num = numStr.replace(/[^0-9]/g, '');
+      if (!num) return '';
+      const parts = num.split('').reverse().join('').match(/.{1,3}/g);
+      const formatted = parts.join(',').split('').reverse().join('');
+      return toPersianDigits(formatted) + ' تومان';
+    }
+
+    const defaultData = {
+      categories: [
+        {
+          name: "پیش‌غذاها",
+          items: [
+            { name: "کاهو و چیلی سس", price: "85000", image: "" },
+            { name: "برنج سوخاری با قارچ", price: "120000", image: "https://via.placeholder.com/60?text=Image" }
+          ]
+        },
+        {
+          name: "غذاهای اصلی",
+          items: [
+            { name: "فیله مرغ گریل", price: "290000", image: "" },
+            { name: "لازانیای خانگی", price: "240000", image: "https://via.placeholder.com/60?text=Pasta" }
+          ]
+        }
+      ]
+    };
+
+    let menuData = JSON.parse(localStorage.getItem('restaurantMenu')) || defaultData;
+    let editMode = false;
+    let currentEdit = { type: null, catIndex: -1, itemIndex: -1 };
+
+    const menuContainer = document.getElementById('menu-container');
+    const searchBox = document.getElementById('search-box');
+    const adminPanel = document.getElementById('admin-panel');
+    const restaurantName = document.getElementById('restaurant-name');
+    const addUpdateBtn = document.getElementById('add-update-btn');
+
+    // ---------- ورود به حالت مدیریت ----------
+    let clickCount = 0;
+    restaurantName.addEventListener('click', () => {
+      clickCount++;
+      if (clickCount >= 5) {
+        document.body.classList.add('admin-mode');
+        adminPanel.style.display = 'block';
+        clickCount = 0;
+        renderMenu(menuData);
+      }
+    });
+
+    document.getElementById('toggle-admin').addEventListener('click', () => {
+      exitEditMode();
+      document.body.classList.remove('admin-mode');
+      adminPanel.style.display = 'none';
+      renderMenu(menuData);
+    });
+
+    function exitEditMode() {
+      editMode = false;
+      currentEdit = { type: null, catIndex: -1, itemIndex: -1 };
+      addUpdateBtn.textContent = 'افزودن آیتم';
+      addUpdateBtn.style.background = '#27ae60';
+      document.getElementById('category-input').value = '';
+      document.getElementById('item-name').value = '';
+      document.getElementById('item-price').value = '';
+      document.getElementById('item-image').value = '';
+    }
+
+    // ---------- ذخیره / به‌روزرسانی ----------
+    addUpdateBtn.addEventListener('click', () => {
+      const catName = document.getElementById('category-input').value.trim();
+      const itemName = document.getElementById('item-name').value.trim();
+      const itemPrice = document.getElementById('item-price').value.trim();
+      const itemImage = document.getElementById('item-image').value.trim();
+
+      if (editMode && currentEdit.type === 'category') {
+        // فقط ویرایش نام دسته‌بندی
+        if (!catName) {
+          alert('نام دسته‌بندی نمی‌تواند خالی باشد.');
+          return;
+        }
+        menuData.categories[currentEdit.catIndex].name = catName;
+      } else {
+        // افزودن یا ویرایش آیتم
+        if (!catName || !itemName || !itemPrice) {
+          alert('لطفاً دسته‌بندی، نام غذا و قیمت را وارد کنید.');
+          return;
+        }
+        const cleanPrice = itemPrice.replace(/[^0-9]/g, '');
+        let category = menuData.categories.find(c => c.name === catName);
+        if (!category) {
+          category = { name: catName, items: [] };
+          menuData.categories.push(category);
+        }
+        if (editMode && currentEdit.type === 'item') {
+          category.items[currentEdit.itemIndex] = { name: itemName, price: cleanPrice, image: itemImage };
+        } else {
+          category.items.push({ name: itemName, price: cleanPrice, image: itemImage });
+        }
+      }
+
+      localStorage.setItem('restaurantMenu', JSON.stringify(menuData));
+      exitEditMode();
+      renderMenu(menuData);
+    });
+
+    // ---------- ویرایش آیتم ----------
+    function editItem(catIndex, itemIndex) {
+      const item = menuData.categories[catIndex].items[itemIndex];
+      const catName = menuData.categories[catIndex].name;
+      document.getElementById('category-input').value = catName;
+      document.getElementById('item-name').value = item.name;
+      document.getElementById('item-price').value = item.price;
+      document.getElementById('item-image').value = item.image || '';
+      editMode = true;
+      currentEdit = { type: 'item', catIndex, itemIndex };
+      addUpdateBtn.textContent = 'به‌روزرسانی آیتم';
+      addUpdateBtn.style.background = '#f39c12';
+    }
+
+    // ✅ ویرایش دسته‌بندی — فقط فیلد دسته پر می‌شود
+    function editCategory(catIndex) {
+      const catName = menuData.categories[catIndex].name;
+      document.getElementById('category-input').value = catName;
+      // ✨ سایر فیلدها خالی می‌مانند
+      document.getElementById('item-name').value = '';
+      document.getElementById('item-price').value = '';
+      document.getElementById('item-image').value = '';
+      editMode = true;
+      currentEdit = { type: 'category', catIndex };
+      addUpdateBtn.textContent = 'به‌روزرسانی دسته‌بندی';
+      addUpdateBtn.style.background = '#9b59b6';
+    }
+
+    // ---------- حذف ----------
+    function deleteItem(catIndex, itemIndex) {
+      menuData.categories[catIndex].items.splice(itemIndex, 1);
+      if (menuData.categories[catIndex].items.length === 0) {
+        menuData.categories.splice(catIndex, 1);
+      }
+      localStorage.setItem('restaurantMenu', JSON.stringify(menuData));
+      renderMenu(menuData);
+    }
+
+    function deleteCategory(catIndex) {
+      if (confirm('آیا مطمئنید که می‌خواهید این دسته‌بندی را حذف کنید؟')) {
+        menuData.categories.splice(catIndex, 1);
+        localStorage.setItem('restaurantMenu', JSON.stringify(menuData));
+        renderMenu(menuData);
+      }
+    }
+
+    // ---------- جستجو ----------
+    searchBox.addEventListener('input', (e) => {
+      const term = e.target.value.trim();
+      const filtered = term ? {
+        categories: menuData.categories.map(cat => ({
+          ...cat,
+          items: cat.items.filter(item => item.name.includes(term))
+        })).filter(cat => cat.items.length > 0)
+      } : menuData;
+      renderMenu(filtered);
+    });
+
+    // ---------- رندر ----------
+    function renderMenu(data) {
+      menuContainer.innerHTML = '';
+      data.categories.forEach((cat, catIndex) => {
+        if (cat.items.length === 0) return;
+        const catEl = document.createElement('div');
+        catEl.className = 'category';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'category-header';
+        headerEl.innerHTML = `
+          <h2 class="category-title">${cat.name}</h2>
+          <div class="cat-edit-delete">
+            <button class="edit-btn" data-cat="${catIndex}">✏️</button>
+            <button class="delete-cat-btn" data-cat="${catIndex}">🗑️</button>
+          </div>
+        `;
+        catEl.appendChild(headerEl);
+
+        cat.items.forEach((item, itemIndex) => {
+          const imgHtml = item.image ? 
+            `<img src="${item.image}" class="item-image" alt="${item.name}" onerror="this.style.display='none'">` : 
+            `<div class="item-image" style="background:#eee;"></div>`;
+
+          const itemEl = document.createElement('div');
+          itemEl.className = 'item';
+          itemEl.innerHTML = `
+            ${imgHtml}
+            <div class="item-info">
+              <div class="item-name">${item.name}</div>
+            </div>
+            <div style="text-align: left;">
+              <div class="item-price">${formatPrice(item.price)}</div>
+              <div class="edit-delete">
+                <button class="edit-btn" data-cat="${catIndex}" data-item="${itemIndex}">✏️</button>
+                <button class="delete-btn" data-cat="${catIndex}" data-item="${itemIndex}">×</button>
+              </div>
+            </div>
+          `;
+          catEl.appendChild(itemEl);
+        });
+        menuContainer.appendChild(catEl);
+      });
+
+      // event listeners
+      document.querySelectorAll('.edit-btn[data-cat]:not([data-item])').forEach(btn => {
+        btn.onclick = () => editCategory(parseInt(btn.dataset.cat));
+      });
+      document.querySelectorAll('.delete-cat-btn').forEach(btn => {
+        btn.onclick = () => deleteCategory(parseInt(btn.dataset.cat));
+      });
+      document.querySelectorAll('.edit-btn[data-item]').forEach(btn => {
+        btn.onclick = () => editItem(parseInt(btn.dataset.cat), parseInt(btn.dataset.item));
+      });
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.onclick = () => deleteItem(parseInt(btn.dataset.cat), parseInt(btn.dataset.item));
+      });
+    }
+
+    renderMenu(menuData);
+  </script>
+</body>
+</html>
